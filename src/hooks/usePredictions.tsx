@@ -1,12 +1,15 @@
-
 import { useState, useEffect } from 'react';
 import { Prediction, PredictionSettings, Question, QuestionType } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 export function usePredictions() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [currentPrediction, setCurrentPrediction] = useState<Prediction | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { apiKey } = useAuth();
+  const navigate = useNavigate();
 
   // Load predictions from localStorage on mount
   useEffect(() => {
@@ -33,7 +36,6 @@ export function usePredictions() {
 
     for (let i = 0; i < numberOfQuestions; i++) {
       const probability = Math.floor(Math.random() * 100);
-      const probabilityClass = probability > 70 ? 'high' : probability > 40 ? 'medium' : 'low';
       
       if (questionType === 'theory') {
         questions.push({
@@ -85,7 +87,17 @@ export function usePredictions() {
     setIsLoading(true);
     
     try {
-      // In a real implementation, this would call an API with the file and settings
+      if (!apiKey) {
+        toast({
+          title: 'API Key Required',
+          description: 'Please add your Gemini API key in the settings first.',
+          variant: 'destructive'
+        });
+        navigate('/settings');
+        return null;
+      }
+      
+      // In a real implementation, this would call an API with the file, settings, and API key
       // For now, we'll simulate a delay and return mock data
       await new Promise(resolve => setTimeout(resolve, 2000));
       
