@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, History } from 'lucide-react';
 import PastPredictionItem from '@/components/ui-elements/PastPredictionItem';
 import PredictionResults from '@/components/ui-elements/PredictionResults';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Predict = () => {
   const navigate = useNavigate();
@@ -55,7 +56,6 @@ const Predict = () => {
   };
   
   const handleViewPastPrediction = (prediction: any) => {
-    // Implement viewing past prediction
     navigate(`/results/${prediction.id}`);
   };
 
@@ -87,6 +87,20 @@ const Predict = () => {
             <FileUpload onFileSelected={handleFileSelected} />
             <PredictionSettings onPredict={handlePredict} isDisabled={!selectedFile || isLoading} />
           </div>
+          
+          {isLoading && (
+            <div className="space-y-4 mt-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Generating predictions...</h3>
+                <div className="text-sm text-muted-foreground">This may take a moment</div>
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+            </div>
+          )}
         </TabsContent>
         
         <TabsContent value="results">

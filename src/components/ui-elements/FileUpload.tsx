@@ -56,6 +56,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const handleFile = (file: File) => {
     // Check file type
     const fileType = file.name.split('.').pop()?.toLowerCase();
+    
+    // Currently we only support TXT files for actual content extraction
+    // In a real app, we'd use libraries to parse PDF and DOCX
     if (!fileType || !acceptedFileTypes.includes(`.${fileType}`)) {
       toast({
         title: 'Invalid File Type',
@@ -63,6 +66,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
         variant: 'destructive'
       });
       return;
+    }
+    
+    if (fileType !== 'txt') {
+      toast({
+        title: 'Limited Support',
+        description: `Currently full text extraction is only supported for TXT files. For PDF and DOCX, only partial content might be extracted.`,
+        variant: 'warning'
+      });
     }
     
     setSelectedFile(file);
@@ -118,6 +129,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
               <h3 className="text-lg font-medium">Drag & Drop Your File</h3>
               <p className="text-sm text-muted-foreground">
                 Support for PDF, DOCX, or TXT files
+              </p>
+              <p className="text-xs text-muted-foreground">
+                (Best results with TXT files)
               </p>
             </div>
             <div className="flex items-center mt-4">
