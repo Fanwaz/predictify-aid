@@ -185,7 +185,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
-              <span>Uploading</span>
+              <span>{isUploading ? "Uploading" : "Ready"}</span>
               <span>{uploadProgress}%</span>
             </div>
             <Progress value={uploadProgress} className="h-1.5" />

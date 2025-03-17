@@ -11,6 +11,7 @@ import { ArrowLeft, History } from 'lucide-react';
 import PastPredictionItem from '@/components/ui-elements/PastPredictionItem';
 import PredictionResults from '@/components/ui-elements/PredictionResults';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/hooks/use-toast';
 
 const Predict = () => {
   const navigate = useNavigate();
@@ -29,10 +30,21 @@ const Predict = () => {
   
   const handleFileSelected = (file: File) => {
     setSelectedFile(file);
+    toast({
+      title: 'File Ready',
+      description: 'Your file has been uploaded successfully. Now you can generate predictions.'
+    });
   };
   
   const handlePredict = async (settings: PredictionSettingsType) => {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      toast({
+        title: 'No File Selected',
+        description: 'Please upload a file first.',
+        variant: 'destructive'
+      });
+      return;
+    }
     
     const result = await predictQuestions(selectedFile, settings);
     if (result) {

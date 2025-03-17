@@ -78,8 +78,8 @@ export function usePredictions() {
       
       console.log('Sending request to Gemini API with prompt');
       
-      // Make request to Gemini API
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + apiKey, {
+      // Updated API URL from v1beta to v1 for Gemini Pro
+      const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=' + apiKey, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ export function usePredictions() {
       const data = await response.json();
       console.log('Gemini API response:', data);
       
-      // Extract the text response
+      // Extract the text response - Updated path to match the v1 API response format
       const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!textResponse) {
