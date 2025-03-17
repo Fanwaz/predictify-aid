@@ -4,6 +4,7 @@ import { Upload, FileText, X, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface FileUploadProps {
   onFileSelected: (file: File) => void;
@@ -69,10 +70,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
     
     if (fileType !== 'txt') {
+      // Changed from 'warning' to 'default' since 'warning' is not an allowed variant
       toast({
         title: 'Limited Support',
         description: `Currently full text extraction is only supported for TXT files. For PDF and DOCX, only partial content might be extracted.`,
-        variant: 'warning'
+        variant: 'default' 
       });
     }
     
