@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Form,
   FormControl,
@@ -27,6 +27,7 @@ type SignUpValues = z.infer<typeof signUpSchema>;
 const SignUp = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signup, isAuthenticated } = useAuth();
 
   const form = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
@@ -37,27 +38,17 @@ const SignUp = () => {
     },
   });
 
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/predict');
+    }
+  }, [isAuthenticated, navigate]);
+
   const onSubmit = async (values: SignUpValues) => {
     try {
-      // This would be replaced with actual registration logic
-      console.log('Sign up with:', values);
-      
-      // Simulate successful registration
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('user', JSON.stringify({ name: values.name, email: values.email }));
-      
-      toast({
-        title: 'Account created!',
-        description: 'You have been signed up and signed in successfully.',
-      });
-      
-      navigate('/predict');
+      await signup(values.name, values.email, values.password);
     } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign up failed',
-        description: 'There was a problem creating your account.',
-      });
+      console.error('Signup error:', error);
     }
   };
 

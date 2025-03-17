@@ -27,19 +27,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
-
+  
   useEffect(() => {
     // Check if user is already logged in
     const checkAuth = () => {
+      console.log('Checking authentication state...');
       const storedAuth = localStorage.getItem('isAuthenticated');
       const storedUser = localStorage.getItem('user');
       const storedApiKey = localStorage.getItem('gemini_api_key');
       
+      console.log('Stored auth state:', { storedAuth, hasStoredUser: !!storedUser });
+      
       if (storedAuth === 'true' && storedUser) {
         try {
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
           setIsAuthenticated(true);
+          console.log('User authenticated:', parsedUser);
+          
           if (storedApiKey) {
             setApiKey(storedApiKey);
           }
@@ -47,7 +52,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.error('Failed to parse stored user:', error);
           localStorage.removeItem('user');
           localStorage.removeItem('isAuthenticated');
+          setIsAuthenticated(false);
         }
+      } else {
+        setIsAuthenticated(false);
+        console.log('User not authenticated');
       }
       
       setIsLoading(false);
@@ -59,27 +68,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log('Logging in with:', { email });
+      
       // This would be an actual API call in a real implementation
       // Simulating successful login
       const user = { email };
+      
+      // Update state
       setUser(user);
       setIsAuthenticated(true);
+      
+      // Update localStorage
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('user', JSON.stringify(user));
+      
+      console.log('Login successful:', { user, isAuthenticated: true });
       
       toast({
         title: 'Welcome back!',
         description: 'You have successfully signed in.',
       });
       
-      navigate('/predict');
+      return Promise.resolve();
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         variant: 'destructive',
         title: 'Login failed',
         description: 'Invalid email or password.',
       });
-      throw error;
+      return Promise.reject(error);
     } finally {
       setIsLoading(false);
     }
@@ -88,33 +106,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (name: string, email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log('Signing up with:', { name, email });
+      
       // This would be an actual API call in a real implementation
       // Simulating successful registration
       const user = { name, email };
+      
+      // Update state
       setUser(user);
       setIsAuthenticated(true);
+      
+      // Update localStorage
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('user', JSON.stringify(user));
+      
+      console.log('Signup successful:', { user, isAuthenticated: true });
       
       toast({
         title: 'Account created',
         description: 'Your account has been successfully created.',
       });
       
-      navigate('/predict');
+      return Promise.resolve();
     } catch (error) {
+      console.error('Signup error:', error);
       toast({
         variant: 'destructive',
         title: 'Registration failed',
         description: 'Could not create your account. Please try again.',
       });
-      throw error;
+      return Promise.reject(error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const logout = () => {
+    console.log('Logging out');
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('isAuthenticated');
@@ -126,8 +154,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       title: 'Signed out',
       description: 'You have been successfully signed out.',
     });
-    
-    navigate('/');
   };
 
   const setUserApiKey = (key: string) => {

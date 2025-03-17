@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Form,
   FormControl,
@@ -28,6 +28,7 @@ const SignIn = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { login, isAuthenticated } = useAuth();
 
   const form = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
@@ -37,27 +38,17 @@ const SignIn = () => {
     },
   });
 
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/predict');
+    }
+  }, [isAuthenticated, navigate]);
+
   const onSubmit = async (values: SignInValues) => {
     try {
-      // This would be replaced with actual authentication logic
-      console.log('Sign in with:', values);
-      
-      // Simulate successful login
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('user', JSON.stringify({ email: values.email }));
-      
-      toast({
-        title: 'Success!',
-        description: 'You have been signed in successfully.',
-      });
-      
-      navigate('/predict');
+      await login(values.email, values.password);
     } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign in failed',
-        description: 'Please check your credentials and try again.',
-      });
+      console.error('Login error:', error);
     }
   };
 

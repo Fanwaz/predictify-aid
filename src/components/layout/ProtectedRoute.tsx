@@ -1,10 +1,16 @@
 
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Log authentication state for debugging
+  useEffect(() => {
+    console.log('ProtectedRoute - Auth state:', { isAuthenticated, isLoading });
+  }, [isAuthenticated, isLoading]);
 
   // Show a loading state while checking authentication
   if (isLoading) {
