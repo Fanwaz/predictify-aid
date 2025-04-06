@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 
 type User = {
   name?: string;
@@ -12,11 +11,9 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  apiKey: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  setApiKey: (key: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,7 +22,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [apiKey, setApiKey] = useState<string | null>(null);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -34,7 +30,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log('Checking authentication state...');
       const storedAuth = localStorage.getItem('isAuthenticated');
       const storedUser = localStorage.getItem('user');
-      const storedApiKey = localStorage.getItem('gemini_api_key');
       
       console.log('Stored auth state:', { storedAuth, hasStoredUser: !!storedUser });
       
@@ -44,10 +39,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(parsedUser);
           setIsAuthenticated(true);
           console.log('User authenticated:', parsedUser);
-          
-          if (storedApiKey) {
-            setApiKey(storedApiKey);
-          }
         } catch (error) {
           console.error('Failed to parse stored user:', error);
           localStorage.removeItem('user');
@@ -147,8 +138,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthenticated(false);
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('user');
-    localStorage.removeItem('gemini_api_key');
-    setApiKey(null);
     
     toast({
       title: 'Signed out',
@@ -156,25 +145,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const setUserApiKey = (key: string) => {
-    setApiKey(key);
-    localStorage.setItem('gemini_api_key', key);
-    
-    toast({
-      title: 'API Key Saved',
-      description: 'Your Gemini API key has been saved successfully.',
-    });
-  };
-
   const value = {
     user,
     isAuthenticated,
     isLoading,
-    apiKey,
     login,
     signup,
     logout,
-    setApiKey: setUserApiKey,
   };
 
   return (
