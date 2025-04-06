@@ -1,7 +1,6 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const OPENROUTER_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,7 +18,9 @@ serve(async (req) => {
     const { content, settings } = await req.json();
     const { questionType, numberOfQuestions } = settings;
     
-    // Prepare the prompt for the Gemini API
+    console.log("Received request to generate questions:", { questionType, numberOfQuestions });
+    
+    // Prepare the prompt for the Gemini API via OpenRouter
     const prompt = `
       Generate ${numberOfQuestions} ${questionType} questions based on the following content. 
       For each question, assign a probability percentage (how likely this question would appear in an exam) and mention its source (e.g., "Found on page X" or specific paragraph).
@@ -40,42 +41,39 @@ serve(async (req) => {
       ${content.substring(0, 10000)} ${content.length > 10000 ? '...(content truncated for length)' : ''}
     `;
     
-    console.log("Sending request to Gemini API");
+    console.log("Sending request to OpenRouter API for Gemini access");
     
-    // Call the Gemini API
-    const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=' + GEMINI_API_KEY, {
+    // Call the OpenRouter API to access Gemini
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://exam-predictor.app',
+        'X-Title': 'Exam Question Predictor',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        contents: [
+        model: "google/gemini-2.5-pro-preview-03-25",
+        messages: [
           {
-            parts: [
-              { text: prompt }
-            ]
+            role: "user",
+            content: prompt
           }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        }
+        ]
       })
     });
     
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Gemini API error:', errorData);
+      console.error('OpenRouter API error:', errorData);
       throw new Error(`API error: ${errorData.error?.message || response.statusText}`);
     }
     
     const data = await response.json();
-    console.log('Gemini API response received');
+    console.log('OpenRouter API response received');
     
-    // Extract the text response
-    const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    // Extract the text response from the OpenRouter format
+    const textResponse = data.choices?.[0]?.message?.content;
     
     if (!textResponse) {
       throw new Error('No text response from API');
@@ -102,7 +100,7 @@ serve(async (req) => {
   }
 });
 
-function extractQuestions(textResponse: string, questionType: string) {
+function extractQuestions(textResponse, questionType) {
   // Try to parse JSON from the response
   try {
     const jsonStart = textResponse.indexOf('[');
@@ -117,7 +115,7 @@ function extractQuestions(textResponse: string, questionType: string) {
     let questions = JSON.parse(jsonStr);
     
     // Validate and clean up each question
-    return questions.map((q: any) => {
+    return questions.map((q) => {
       // Ensure probability is a number between 1-100
       q.probability = Math.min(Math.max(Number(q.probability) || 50, 1), 100);
       
@@ -126,7 +124,7 @@ function extractQuestions(textResponse: string, questionType: string) {
       
       // If objective, ensure options have required properties
       if (questionType === 'objective' && q.options) {
-        q.options = q.options.map((option: any, index: number) => ({
+        q.options = q.options.map((option, index) => ({
           id: option.id || `o-${Date.now()}-${index}`,
           text: option.text || 'No option text provided',
           isCorrect: Boolean(option.isCorrect)
@@ -141,7 +139,7 @@ function extractQuestions(textResponse: string, questionType: string) {
   }
 }
 
-function parseQuestionsManually(text: string, questionType: string) {
+function parseQuestionsManually(text, questionType) {
   console.log('Attempting to parse questions manually from response');
   const questions = [];
   
