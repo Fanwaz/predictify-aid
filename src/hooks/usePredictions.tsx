@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Prediction, PredictionSettings, Question, QuestionType } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -58,6 +57,7 @@ export function usePredictions() {
       let fileContent;
       try {
         fileContent = await extractTextFromFile(file);
+        console.log("Successfully extracted file content, length:", fileContent.length);
       } catch (error) {
         console.error('Failed to extract text from file:', error);
         toast({
@@ -85,8 +85,11 @@ export function usePredictions() {
       }
       
       if (!data || !data.questions) {
+        console.error('Invalid response format:', data);
         throw new Error('No questions received from the prediction service');
       }
+      
+      console.log('Received response from prediction service:', data);
       
       // Sort questions by probability (highest first)
       const sortedQuestions = data.questions.sort((a: Question, b: Question) => b.probability - a.probability);
