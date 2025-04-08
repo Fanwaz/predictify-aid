@@ -68,44 +68,68 @@ export function usePredictions() {
       
       console.log(`Sending file content to prediction service (${fileContent.length} characters)`);
       
-      // Call the Supabase edge function to generate questions
-      const { data, error } = await supabase.functions.invoke('generate-questions', {
-        body: {
-          content: fileContent,
-          settings: settings
+      // Call the Supabase edge function to generate questions with retries
+      const maxRetries = 2;
+      let retryCount = 0;
+      let error = null;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          const { data, error: functionError } = await supabase.functions.invoke('generate-questions', {
+            body: {
+              content: fileContent,
+              settings: settings
+            }
+          });
+          
+          if (functionError) {
+            throw new Error(functionError.message || 'Failed to generate predictions');
+          }
+          
+          if (!data || !data.questions) {
+            throw new Error('No questions received from the prediction service');
+          }
+          
+          console.log('Received prediction response with questions:', data.questions.length);
+          
+          // Sort questions by probability (highest first)
+          const sortedQuestions = data.questions.sort((a: Question, b: Question) => b.probability - a.probability);
+          
+          const newPrediction: Prediction = {
+            id: `pred-${Date.now()}`,
+            date: new Date().toISOString(),
+            title: file.name,
+            questions: sortedQuestions,
+            settings
+          };
+          
+          setCurrentPrediction(newPrediction);
+          return newPrediction;
+        } catch (e) {
+          console.error(`Attempt ${retryCount + 1}/${maxRetries + 1} failed:`, e);
+          error = e;
+          retryCount++;
+          
+          if (retryCount <= maxRetries) {
+            // Wait before retrying (exponential backoff)
+            const waitTime = 1000 * Math.pow(2, retryCount);
+            console.log(`Retrying in ${waitTime}ms...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
         }
-      });
-      
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw new Error(error.message || 'Failed to generate predictions');
       }
       
-      if (!data || !data.questions) {
-        console.error('Invalid response format:', data);
-        throw new Error('No questions received from the prediction service');
-      }
-      
-      console.log('Received prediction response with questions:', data.questions.length);
-      
-      // Sort questions by probability (highest first)
-      const sortedQuestions = data.questions.sort((a: Question, b: Question) => b.probability - a.probability);
-      
-      const newPrediction: Prediction = {
-        id: `pred-${Date.now()}`,
-        date: new Date().toISOString(),
-        title: file.name,
-        questions: sortedQuestions,
-        settings
-      };
-      
-      setCurrentPrediction(newPrediction);
-      return newPrediction;
+      // If we get here, all retries failed
+      throw error || new Error('Failed to generate predictions after multiple attempts');
     } catch (error) {
       console.error('Failed to predict questions:', error);
       toast({
         title: 'Prediction Failed',
-        description: error instanceof Error ? error.message : 'There was an error generating predictions. Please try again.',
+        description: error instanceof Error 
+          ? error.message.includes('credits') 
+            ? 'Your OpenRouter API ran out of credits or token limit exceeded. Please check your API key or reduce the number of questions.' 
+            : error.message 
+          : 'There was an error generating predictions. Please try again with a smaller file or fewer questions.',
         variant: 'destructive'
       });
       return null;

@@ -7,11 +7,12 @@ import { usePredictions } from '@/hooks/usePredictions';
 import { PredictionSettings as PredictionSettingsType } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, History } from 'lucide-react';
+import { ArrowLeft, History, AlertCircle } from 'lucide-react';
 import PastPredictionItem from '@/components/ui-elements/PastPredictionItem';
 import PredictionResults from '@/components/ui-elements/PredictionResults';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const Predict = () => {
   const navigate = useNavigate();
@@ -27,9 +28,11 @@ const Predict = () => {
   
   const [activeTab, setActiveTab] = useState('predict');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
   
   const handleFileSelected = (file: File) => {
     setSelectedFile(file);
+    setPredictionError(null);
     toast({
       title: 'File Ready',
       description: 'Your file has been uploaded successfully. Now you can generate predictions.'
@@ -46,9 +49,13 @@ const Predict = () => {
       return;
     }
     
+    setPredictionError(null);
     const result = await predictQuestions(selectedFile, settings);
+    
     if (result) {
       setActiveTab('results');
+    } else {
+      setPredictionError('Failed to generate predictions. Try using a smaller file or fewer questions.');
     }
   };
   
@@ -62,8 +69,13 @@ const Predict = () => {
     if (!selectedFile) return;
     
     if (currentPrediction) {
+      setPredictionError(null);
       const settings = currentPrediction.settings;
-      await regeneratePrediction(selectedFile, settings);
+      const result = await regeneratePrediction(selectedFile, settings);
+      
+      if (!result) {
+        setPredictionError('Failed to regenerate predictions. Try using a smaller file or fewer questions.');
+      }
     }
   };
   
@@ -95,6 +107,19 @@ const Predict = () => {
         </TabsList>
         
         <TabsContent value="predict" className="space-y-6">
+          {predictionError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>
+                {predictionError}
+                <p className="mt-2 text-sm">
+                  If this error persists, check that your API credits are sufficient and try using a smaller file or requesting fewer questions.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FileUpload onFileSelected={handleFileSelected} />
             <PredictionSettings onPredict={handlePredict} isDisabled={!selectedFile || isLoading} />

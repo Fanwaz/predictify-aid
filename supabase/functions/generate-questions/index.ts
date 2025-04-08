@@ -25,18 +25,22 @@ serve(async (req) => {
       throw new Error('No content provided to generate questions from');
     }
 
-    // Extract text content from binary file if needed
+    // Extract a reasonable amount of text content from the file to avoid token limits
+    // For binary files like DOCX or PDF, we'll take just a portion to avoid exceeding token limits
     let textContent = content;
-    if (content.startsWith('PK') || content.indexOf('%PDF') >= 0) {
-      // This appears to be a binary file (DOCX or PDF)
-      console.log("Detected binary file, will let the model handle extraction");
-      textContent = `This is the content of a binary document file. Please extract the text and generate questions based on it: ${content.substring(0, 1000)}... (content truncated for message size)`;
-    }
-
-    // Limit content to prevent token overflow (8K chars is ~2K tokens)
-    const truncatedContent = textContent.length > 8000 ? textContent.substring(0, 8000) + '...(content truncated)' : textContent;
+    const maxContentLength = 4000; // Limit content to prevent token overflow
     
-    // Simple prompt for Gemini via OpenRouter
+    if (content.startsWith('PK') || content.indexOf('%PDF') >= 0) {
+      console.log("Detected binary file, taking a sample for processing");
+      // For binary files, we'll extract a smaller sample to avoid overwhelming the model
+      textContent = `This appears to be a binary document file. Please extract key concepts and generate ${numberOfQuestions} ${questionType} questions from this sample: ${content.substring(0, maxContentLength)}`;
+    } else if (content.length > maxContentLength) {
+      // For text content, truncate to a reasonable size
+      textContent = content.substring(0, maxContentLength) + '...(content truncated for token limit)';
+      console.log(`Content truncated from ${content.length} to ${textContent.length} characters`);
+    }
+    
+    // Simple prompt for Gemini via OpenRouter with reduced max_tokens
     const prompt = `
       You are an exam question generator. Please generate ${numberOfQuestions} ${questionType} exam questions based on the provided content.
       
@@ -62,10 +66,10 @@ serve(async (req) => {
       Return ONLY valid JSON without any explanation text. The JSON must be properly formatted.
       
       Here's the content:
-      ${truncatedContent}
+      ${textContent}
     `;
     
-    console.log("Sending request to OpenRouter API");
+    console.log("Sending request to OpenRouter API with reduced max_tokens");
     
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -83,7 +87,7 @@ serve(async (req) => {
             content: prompt
           }
         ],
-        max_tokens: 4000,
+        max_tokens: 2000, // Reduced from 4000 to stay within limits
         temperature: 0.7
       })
     });
@@ -91,7 +95,7 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`OpenRouter API error (${response.status}):`, errorText);
-      throw new Error(`API error (${response.status}): ${errorText || 'Unknown error'}`);
+      throw new Error(`OpenRouter API error (${response.status}): ${errorText || 'Unknown error'}`);
     }
     
     const data = await response.json();
