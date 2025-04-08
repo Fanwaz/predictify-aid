@@ -35,16 +35,20 @@ export function usePredictions() {
       
       reader.onload = (event) => {
         if (event.target) {
-          resolve(event.target.result as string);
+          const content = event.target.result as string;
+          console.log(`Successfully read file, content length: ${content.length}`);
+          resolve(content);
         } else {
           reject(new Error('Failed to read file'));
         }
       };
       
-      reader.onerror = () => {
+      reader.onerror = (error) => {
+        console.error('Error reading file:', error);
         reject(new Error('Error reading file'));
       };
       
+      // For text files, use readAsText
       reader.readAsText(file);
     });
   };
@@ -54,24 +58,16 @@ export function usePredictions() {
     
     try {
       // Extract text from the file
-      let fileContent;
-      try {
-        fileContent = await extractTextFromFile(file);
-        console.log("Successfully extracted file content, length:", fileContent.length);
-      } catch (error) {
-        console.error('Failed to extract text from file:', error);
-        toast({
-          title: 'File Reading Error',
-          description: 'Failed to read the uploaded file. Please try again with a different file.',
-          variant: 'destructive'
-        });
-        setIsLoading(false);
-        return null;
+      console.log(`Starting extraction for file: ${file.name} (${file.size} bytes)`);
+      const fileContent = await extractTextFromFile(file);
+      
+      if (!fileContent || fileContent.trim() === '') {
+        throw new Error('Extracted file content is empty');
       }
       
-      // Call the Supabase edge function to generate questions
-      console.log('Calling Supabase edge function to generate predictions');
+      console.log(`Sending file content to prediction service (${fileContent.length} characters)`);
       
+      // Call the Supabase edge function to generate questions
       const { data, error } = await supabase.functions.invoke('generate-questions', {
         body: {
           content: fileContent,
@@ -89,7 +85,7 @@ export function usePredictions() {
         throw new Error('No questions received from the prediction service');
       }
       
-      console.log('Received response from prediction service:', data);
+      console.log('Received prediction response with questions:', data.questions.length);
       
       // Sort questions by probability (highest first)
       const sortedQuestions = data.questions.sort((a: Question, b: Question) => b.probability - a.probability);
@@ -108,7 +104,7 @@ export function usePredictions() {
       console.error('Failed to predict questions:', error);
       toast({
         title: 'Prediction Failed',
-        description: 'There was an error generating predictions. Please try again.',
+        description: error instanceof Error ? error.message : 'There was an error generating predictions. Please try again.',
         variant: 'destructive'
       });
       return null;
