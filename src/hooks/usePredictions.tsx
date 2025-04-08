@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Prediction, PredictionSettings, Question, QuestionType } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -48,8 +49,8 @@ export function usePredictions() {
         reject(new Error('Error reading file'));
       };
       
-      // For text files, use readAsText
-      reader.readAsText(file);
+      // Read as binary string to support more file types
+      reader.readAsBinaryString(file);
     });
   };
 

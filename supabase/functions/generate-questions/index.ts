@@ -25,26 +25,37 @@ serve(async (req) => {
       throw new Error('No content provided to generate questions from');
     }
 
+    // Extract text content from binary file if needed
+    let textContent = content;
+    if (content.startsWith('PK') || content.indexOf('%PDF') >= 0) {
+      // This appears to be a binary file (DOCX or PDF)
+      console.log("Detected binary file, will let the model handle extraction");
+      textContent = `This is the content of a binary document file. Please extract the text and generate questions based on it: ${content.substring(0, 1000)}... (content truncated for message size)`;
+    }
+
     // Limit content to prevent token overflow (8K chars is ~2K tokens)
-    const truncatedContent = content.length > 8000 ? content.substring(0, 8000) + '...(content truncated)' : content;
+    const truncatedContent = textContent.length > 8000 ? textContent.substring(0, 8000) + '...(content truncated)' : textContent;
     
-    // Direct prompt to Gemini via OpenRouter
+    // Simple prompt for Gemini via OpenRouter
     const prompt = `
-      Based on this content, generate ${numberOfQuestions} ${questionType} exam questions.
-      For each question, assign a probability percentage (how likely this question would appear in a real exam).
-      ${questionType === 'theory' ? 'For each theory question, provide a sample answer.' : 'For each objective question, provide 4 options and mark the correct one.'}
+      You are an exam question generator. Please generate ${numberOfQuestions} ${questionType} exam questions based on the provided content.
       
-      Format your response as a JSON array with these fields:
+      For each question:
+      - Assign a probability percentage (how likely this would appear in a real exam)
+      - ${questionType === 'theory' ? 'Provide a sample answer for each theory question.' : 'Provide 4 options and mark the correct one for each objective question.'}
+      - Include a source section that shows what part of the content this is based on
+      
+      Return your response as a JSON array with this format:
       [
         {
           "id": "q1",
-          "text": "question text",
-          "probability": number between 1-100,
-          "source": "section from content this is based on",
+          "text": "Question text here",
+          "probability": 85,
+          "source": "Section from content this is based on",
           "type": "${questionType}",
           ${questionType === 'theory' 
-            ? '"answer": "sample answer for the question"' 
-            : '"options": [{"id": "a", "text": "option text", "isCorrect": boolean}]'}
+            ? '"answer": "Sample answer for the question"' 
+            : '"options": [{"id": "a", "text": "Option text", "isCorrect": true}, {"id": "b", "text": "Option text", "isCorrect": false}]'}
         }
       ]
       
@@ -72,14 +83,15 @@ serve(async (req) => {
             content: prompt
           }
         ],
-        max_tokens: 4000 // Limit token usage to prevent hitting limits
+        max_tokens: 4000,
+        temperature: 0.7
       })
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('OpenRouter API error:', response.status, JSON.stringify(errorData));
-      throw new Error(`API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
+      const errorText = await response.text();
+      console.error(`OpenRouter API error (${response.status}):`, errorText);
+      throw new Error(`API error (${response.status}): ${errorText || 'Unknown error'}`);
     }
     
     const data = await response.json();
@@ -88,23 +100,28 @@ serve(async (req) => {
     const textResponse = data.choices?.[0]?.message?.content;
     
     if (!textResponse) {
-      console.error('No valid response content from API');
+      console.error('No valid response content from API:', JSON.stringify(data));
       throw new Error('No valid content in the API response');
     }
     
-    // Parse the JSON response
+    // Parse the JSON response with improved error handling
     let questions;
     try {
-      // Extract JSON from text response (look for JSON array)
-      const jsonStart = textResponse.indexOf('[');
-      const jsonEnd = textResponse.lastIndexOf(']') + 1;
-      
-      if (jsonStart >= 0 && jsonEnd > jsonStart) {
-        const jsonText = textResponse.substring(jsonStart, jsonEnd);
-        questions = JSON.parse(jsonText);
-      } else {
-        // Try parsing the whole response as JSON
+      // Try different methods to extract JSON
+      if (textResponse.trim().startsWith('[') && textResponse.trim().endsWith(']')) {
+        // It's already a JSON array
         questions = JSON.parse(textResponse);
+      } else {
+        // Try to find JSON array in the response
+        const jsonRegex = /\[\s*\{[\s\S]*\}\s*\]/g;
+        const match = textResponse.match(jsonRegex);
+        
+        if (match && match[0]) {
+          questions = JSON.parse(match[0]);
+        } else {
+          console.error('Could not extract JSON from response:', textResponse);
+          throw new Error('Could not extract a valid JSON array from the model response');
+        }
       }
       
       console.log(`Successfully parsed ${questions.length} questions`);
