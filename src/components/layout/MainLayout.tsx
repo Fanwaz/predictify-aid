@@ -45,7 +45,7 @@ const MainLayout: React.FC = () => {
       </main>
       <footer className="py-6 border-t border-border/40 text-center text-sm text-muted-foreground">
         <div className="max-w-7xl mx-auto px-4">
-          <p>© {new Date().getFullYear()} Exam Question Predictor AI</p>
+          <p>© {new Date().getFullYear()} Nuvion Labs</p>
         </div>
       </footer>
     </div>
