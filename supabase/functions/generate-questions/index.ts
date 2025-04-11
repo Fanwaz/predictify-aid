@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-// Use the environment variable from Supabase secrets (we'll set this in a moment)
+// Use the environment variable from Supabase secrets
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
 const corsHeaders = {
