@@ -33,10 +33,6 @@ const Predict = () => {
   const handleFileSelected = (file: File) => {
     setSelectedFile(file);
     setPredictionError(null);
-    toast({
-      title: 'File Ready',
-      description: 'Your file has been uploaded successfully. Now you can generate predictions.'
-    });
   };
   
   const handlePredict = async (settings: PredictionSettingsType) => {
@@ -49,11 +45,28 @@ const Predict = () => {
       return;
     }
     
+    // Limit number of questions to 20 to prevent timeouts and token limits
+    if (settings.numberOfQuestions > 20) {
+      toast({
+        title: 'Too Many Questions',
+        description: 'For best results, please limit to 20 questions or fewer.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     setPredictionError(null);
-    const result = await predictQuestions(selectedFile, settings);
+    const result = await predictQuestions(selectedFile, {
+      ...settings,
+      numberOfQuestions: Math.min(settings.numberOfQuestions, 20)
+    });
     
     if (result) {
       setActiveTab('results');
+      toast({
+        title: 'Prediction Complete',
+        description: `Generated ${result.questions.length} questions successfully.`
+      });
     } else {
       setPredictionError('Failed to generate predictions. Try using a smaller file or fewer questions.');
     }

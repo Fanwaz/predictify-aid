@@ -26,6 +26,12 @@ serve(async (req) => {
       throw new Error('No content provided to generate questions from');
     }
 
+    // Check if API key is available
+    if (!OPENROUTER_API_KEY) {
+      console.error('OPENROUTER_API_KEY is not set in environment variables');
+      throw new Error('OpenRouter API key is not configured');
+    }
+
     // Extract a reasonable amount of text content from the file to avoid token limits
     let textContent = content;
     const maxContentLength = 4000; // Limit content to prevent token overflow
