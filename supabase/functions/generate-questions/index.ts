@@ -1,7 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const OPENROUTER_API_KEY = Deno.env.get("GEMINI_API_KEY");
+// Use the environment variable from Supabase secrets (we'll set this in a moment)
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,7 +27,6 @@ serve(async (req) => {
     }
 
     // Extract a reasonable amount of text content from the file to avoid token limits
-    // For binary files like DOCX or PDF, we'll take just a portion to avoid exceeding token limits
     let textContent = content;
     const maxContentLength = 4000; // Limit content to prevent token overflow
     
@@ -40,7 +40,7 @@ serve(async (req) => {
       console.log(`Content truncated from ${content.length} to ${textContent.length} characters`);
     }
     
-    // Simple prompt for Gemini via OpenRouter with reduced max_tokens
+    // Updated prompt for Gemini experimental model
     const prompt = `
       You are an exam question generator. Please generate ${numberOfQuestions} ${questionType} exam questions based on the provided content.
       
@@ -69,8 +69,9 @@ serve(async (req) => {
       ${textContent}
     `;
     
-    console.log("Sending request to OpenRouter API with reduced max_tokens");
+    console.log("Sending request to OpenRouter API with Gemini 2.5 Pro experimental model");
     
+    // Updated request to use the experimental model
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -80,14 +81,14 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro-preview-03-25",
+        model: "google/gemini-2.5-pro-exp-03-25:free",
         messages: [
           {
             role: "user",
             content: prompt
           }
         ],
-        max_tokens: 2000, // Reduced from 4000 to stay within limits
+        max_tokens: 2000, // Keeping the reduced token limit to stay within free tier constraints
         temperature: 0.7
       })
     });
