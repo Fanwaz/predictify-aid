@@ -34,50 +34,48 @@ serve(async (req) => {
 
     // Extract a reasonable amount of text content from the file to avoid token limits
     let textContent = content;
-    const maxContentLength = 4000; // Limit content to prevent token overflow
+    const maxContentLength = 3000; // Reducing from 4000 to 3000 to stay within limits
     
     if (content.startsWith('PK') || content.indexOf('%PDF') >= 0) {
       console.log("Detected binary file, taking a sample for processing");
       // For binary files, we'll extract a smaller sample to avoid overwhelming the model
-      textContent = `This appears to be a binary document file. Please extract key concepts and generate ${numberOfQuestions} ${questionType} questions from this sample: ${content.substring(0, maxContentLength)}`;
+      textContent = `This appears to be a binary document file. Please extract key concepts and generate ${numberOfQuestions} ${questionType} questions from this sample: ${content.substring(0, maxContentLength / 2)}`;
     } else if (content.length > maxContentLength) {
       // For text content, truncate to a reasonable size
       textContent = content.substring(0, maxContentLength) + '...(content truncated for token limit)';
       console.log(`Content truncated from ${content.length} to ${textContent.length} characters`);
     }
     
-    // Updated prompt for Gemini experimental model
+    // Updated prompt with fewer details to save tokens
     const prompt = `
-      You are an exam question generator. Please generate ${numberOfQuestions} ${questionType} exam questions based on the provided content.
+      Generate ${numberOfQuestions} ${questionType} exam questions based on this content.
       
       For each question:
-      - Assign a probability percentage (how likely this would appear in a real exam)
-      - ${questionType === 'theory' ? 'Provide a sample answer for each theory question.' : 'Provide 4 options and mark the correct one for each objective question.'}
-      - Include a source section that shows what part of the content this is based on
+      - Include a probability percentage
+      - ${questionType === 'theory' ? 'Provide a sample answer.' : 'Provide 4 options with one correct answer.'}
+      - Include a source section
       
-      Return your response as a JSON array with this format:
+      Return as JSON array:
       [
         {
           "id": "q1",
-          "text": "Question text here",
+          "text": "Question text",
           "probability": 85,
-          "source": "Section from content this is based on",
+          "source": "Source from content",
           "type": "${questionType}",
           ${questionType === 'theory' 
-            ? '"answer": "Sample answer for the question"' 
-            : '"options": [{"id": "a", "text": "Option text", "isCorrect": true}, {"id": "b", "text": "Option text", "isCorrect": false}]'}
+            ? '"answer": "Sample answer"' 
+            : '"options": [{"id": "a", "text": "Option", "isCorrect": true}, {"id": "b", "text": "Option", "isCorrect": false}]'}
         }
       ]
       
-      Return ONLY valid JSON without any explanation text. The JSON must be properly formatted.
-      
-      Here's the content:
+      Return ONLY valid JSON. Content:
       ${textContent}
     `;
     
-    console.log("Sending request to OpenRouter API with Gemini 2.5 Pro experimental model");
+    console.log("Sending request to OpenRouter API");
     
-    // Updated request to use the experimental model
+    // Request with reduced token limit
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -94,15 +92,23 @@ serve(async (req) => {
             content: prompt
           }
         ],
-        max_tokens: 2000, // Keeping the reduced token limit to stay within free tier constraints
-        temperature: 0.7
+        max_tokens: 1500, // Further reduced token limit
+        temperature: 0.5 // Lower temperature for more focused results
       })
     });
     
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`OpenRouter API error (${response.status}):`, errorText);
-      throw new Error(`OpenRouter API error (${response.status}): ${errorText || 'Unknown error'}`);
+      
+      // More detailed error handling
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Authentication failed with OpenRouter API. Please check your API key.');
+      } else if (response.status === 429) {
+        throw new Error('Rate limit exceeded on OpenRouter API. Please try again later.');
+      } else {
+        throw new Error(`OpenRouter API error (${response.status}): ${errorText || 'Unknown error'}`);
+      }
     }
     
     const data = await response.json();

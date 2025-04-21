@@ -123,13 +123,23 @@ export function usePredictions() {
       throw error || new Error('Failed to generate predictions after multiple attempts');
     } catch (error) {
       console.error('Failed to predict questions:', error);
+      
+      // More specific error messages
+      let errorMessage = 'There was an error generating predictions. Please try again with a smaller file or fewer questions.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('API key') || error.message.includes('Authentication failed')) {
+          errorMessage = 'There was an issue with the OpenRouter API authentication. Please contact support.';
+        } else if (error.message.includes('rate limit') || error.message.includes('credits')) {
+          errorMessage = 'The API rate limit has been reached or ran out of credits. Please try again later.';
+        } else if (error.message.includes('token limit') || error.message.includes('size')) {
+          errorMessage = 'Your document is too large. Please try a smaller file or request fewer questions.';
+        }
+      }
+      
       toast({
         title: 'Prediction Failed',
-        description: error instanceof Error 
-          ? error.message.includes('credits') 
-            ? 'Your OpenRouter API ran out of credits or token limit exceeded. Please check your API key or reduce the number of questions.' 
-            : error.message 
-          : 'There was an error generating predictions. Please try again with a smaller file or fewer questions.',
+        description: errorMessage,
         variant: 'destructive'
       });
       return null;
